@@ -1,0 +1,28 @@
+# ==========================
+# Python
+# ==========================
+__pycache__/
+*.py[cod]
+
+# Virtual Environments
+.venv/
+venv/
+env/
+
+# Environment Variables
+.env
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ==========================
+# Generated Files
+# ==========================
+
+Inventory_API/output/*.csv
+Inventory_API/logs/*.log
+Inventory_API/archive/
