@@ -26,3 +26,7 @@ Thumbs.db
 Inventory_API/output/*.csv
 Inventory_API/logs/*.log
 Inventory_API/archive/
+
+
+# Private inventory configuration
+Inventory_API/config/stores.csv
