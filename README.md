@@ -67,6 +67,22 @@ Retail_Automation/
 
 ---
 
+## Configuration
+
+Create the following file before running the project:
+
+```
+Inventory_API/config/stores.csv
+```
+
+You can use:
+
+```
+Inventory_API/config/stores_example.csv
+```
+
+as a template.
+
 ## Technology Stack
 
 - Python
