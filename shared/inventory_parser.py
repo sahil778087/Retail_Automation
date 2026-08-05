@@ -1,34 +1,40 @@
 import pandas as pd
 
 # ==========================================
-# QueueBuster → Power BI Column Mapping
+# QueueBuster → Canonical DataFrame Mapping
 # ==========================================
 
 COLUMN_MAPPING = {
-    "productID": "productID",
-    "productName": "Product Name",
-    "unit": "Unit",
-    "categoryName": "Category",
-    "subCategoryName": "SubCategory",
-    "inventoryLevel": "Stock"
+    "productID": "product_id",
+    "productName": "product_name",
+    "unit": "unit",
+    "categoryID": "category_id",
+    "categoryName": "category_name",
+    "subCategoryID": "sub_category_id",
+    "subCategoryName": "sub_category_name",
+    "brandID": "brand_id",
+    "brandName": "brand_name",
+    "barcode": "barcode",
+    "inventoryLevel": "stock_quantity",
 }
 
-# Final column order expected by Power BI
+# Canonical column order
 FINAL_COLUMNS = [
-    "productID",
-    "Product Name",
-    "Unit",
-    "Category",
-    "SubCategory",
-    "StoreID",
-    "Store Name",
-    "Stock"
+    "product_id",
+    "product_name",
+    "unit",
+    "category_id",
+    "category_name",
+    "sub_category_id",
+    "sub_category_name",
+    "brand_id",
+    "brand_name",
+    "barcode",
+    "store_id",
+    "store_name",
+    "stock_quantity",
 ]
 
-
-# ==========================================
-# Inventory Parser
-# ==========================================
 
 def parse_inventory(
     response: dict,
@@ -36,66 +42,57 @@ def parse_inventory(
     store_name: str
 ) -> pd.DataFrame:
     """
-    Converts QueueBuster Inventory JSON response
-    into the Fact_Inventory format used by Power BI.
-
-    Parameters
-    ----------
-    response : dict
-        Raw JSON response from QueueBuster API.
-
-    store_id : int
-        Store ID for which the API was called.
-
-    store_name : str
-        Store Name from stores.csv
-
-    Returns
-    -------
-    pandas.DataFrame
+    Converts QueueBuster Inventory API response
+    into the project's canonical inventory DataFrame.
     """
 
-    # -----------------------------
+    # ----------------------------------------
     # Validate Response
-    # -----------------------------
-    if not response.get("status", False):
-        raise ValueError("QueueBuster API returned an unsuccessful response.")
+    # ----------------------------------------
 
-    # -----------------------------
+    if not response.get("status", False):
+        raise ValueError(
+            "QueueBuster API returned an unsuccessful response."
+        )
+
+    # ----------------------------------------
     # Extract catalogueData
-    # -----------------------------
+    # ----------------------------------------
+
     catalogue = response.get("catalogueData", [])
 
-    # If store has no products
-    if len(catalogue) == 0:
+    if not catalogue:
         return pd.DataFrame(columns=FINAL_COLUMNS)
 
-    # -----------------------------
+    # ----------------------------------------
     # Create DataFrame
-    # -----------------------------
+    # ----------------------------------------
+
     df = pd.DataFrame(catalogue)
 
-    # -----------------------------
-    # Keep only required columns
-    # -----------------------------
-    required_columns = list(COLUMN_MAPPING.keys())
+    # ----------------------------------------
+    # Keep Required Columns
+    # ----------------------------------------
 
-    df = df[required_columns]
+    df = df[list(COLUMN_MAPPING.keys())]
 
-    # -----------------------------
+    # ----------------------------------------
     # Rename Columns
-    # -----------------------------
+    # ----------------------------------------
+
     df.rename(columns=COLUMN_MAPPING, inplace=True)
 
-    # -----------------------------
+    # ----------------------------------------
     # Add Store Details
-    # -----------------------------
-    df["StoreID"] = store_id
-    df["Store Name"] = store_name
+    # ----------------------------------------
 
-    # -----------------------------
+    df["store_id"] = store_id
+    df["store_name"] = store_name
+
+    # ----------------------------------------
     # Reorder Columns
-    # -----------------------------
+    # ----------------------------------------
+
     df = df[FINAL_COLUMNS]
 
     return df
