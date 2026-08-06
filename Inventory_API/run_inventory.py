@@ -7,11 +7,8 @@ from shared.store_loader import load_stores
 from shared.inventory_parser import parse_inventory
 from shared.exporter import export_inventory
 
-from shared.database.connection import get_connection
-
 from shared.database.repositories.run_repository import (
-    create_run,
-    complete_run
+    fail_run
 )
 
 from shared.database.repositories.store_repository import (
@@ -24,20 +21,12 @@ from shared.database.repositories.inventory_repository import (
 
 from Inventory_API.qb_inventory_api import fetch_store_inventory
 
-from shared.database.repositories.category_repository import (
-    sync_categories
-)
-
-from shared.database.repositories.sub_category_repository import (
-    sync_sub_categories
-)
-
-from shared.database.repositories.brand_repository import (
-    sync_brands
-)
-
-from shared.database.repositories.product_repository import (
-    sync_products
+from Inventory_API.inventory_workflow import (
+    initialize_inventory_run,
+    fetch_inventory,
+    sync_master_data,
+    save_inventory_snapshot,
+    complete_inventory_run
 )
 
 from shared.logger import get_logger
@@ -56,200 +45,128 @@ def main():
 
     start_time = perf_counter()
 
-    # -------------------------------------------------
-    # Open Database Connection
-    # -------------------------------------------------
-
-    connection = get_connection()
-
-    # -------------------------------------------------
-    # Create Inventory Run
-    # -------------------------------------------------
-
-    run_id = create_run(connection)
-
-    logger.info(f"Run Started : {run_id}")
-
-    # -------------------------------------------------
-    # Generate Partner Token
-    # -------------------------------------------------
-
-    auth = get_partner_token()
-
-    token = auth["token"]
-
-    logger.info("Partner Token Generated")
-    logger.info(f"Issued At : {auth['issued_at']}")
-    logger.info(f"Expires   : {auth['expires']}")
-
-    # -------------------------------------------------
-    # Load Stores
-    # -------------------------------------------------
-
-    stores = load_stores()
-
-    logger.info(f"Loaded {len(stores)} Stores")
-
-    # -------------------------------------------------
-    # Sync Store Master
-    # -------------------------------------------------
-
-    stores_synced = sync_stores(
-        connection=connection,
-        stores_df=stores
-    )
-
-    logger.info(f"Store Master Synced ({stores_synced} affected rows)")
-
-    inventory_frames = []
-
+    connection = None
+    run_id = None
+    rows_inserted = 0
     stores_processed = 0
     stores_failed = 0
+
+# -------------------------------------------------
+# initialize_inventory_run
+# -------------------------------------------------
+    try:
+        connection, run_id = initialize_inventory_run(
+        logger=logger
+        )
+
+
 
     # -------------------------------------------------
     # Fetch Inventory
     # -------------------------------------------------
 
-    for _, store in stores.iterrows():
+        stores, final_df, stores_processed, stores_failed = fetch_inventory(
+            logger=logger
+        )
 
-        store_id = int(store["store_id"])
-        store_name = str(store["store_name"])
+        # -------------------------------------------------
+        # Sync Store Master
+        # -------------------------------------------------
 
-        logger.info(f"Fetching : {store_name}")
+        stores_synced = sync_stores(
+            connection=connection,
+            stores_df=stores
+        )
 
-        try:
-
-            response = fetch_store_inventory(
-                store_id=store_id,
-                token=token
-            )
-
-            df = parse_inventory(
-                response=response,
-                store_id=store_id,
-                store_name=store_name
-            )
-
-            inventory_frames.append(df)
-
-            stores_processed += 1
-
-            logger.info(f"Products Retrieved : {len(df)}")
-
-        except Exception as e:
-
-            stores_failed += 1
-
-            logger.exception(
-                f"Failed processing store: {store_name}"
-            )
-
-            continue
-
+        logger.info(
+            f"Store Master Synced ({stores_synced} affected rows)"
+        )
     # -------------------------------------------------
-    # Safety Check
+    # Synchronize Master Tables
     # -------------------------------------------------
 
-    if not inventory_frames:
-        raise Exception("No inventory data was fetched.")
+        sync_master_data(
+            connection=connection,
+            inventory_df=final_df,
+            logger=logger
+        )
 
-    # -------------------------------------------------
-    # Merge Inventory
-    # -------------------------------------------------
+        # -------------------------------------------------
+        # Store Inventory Snapshot
+        # -------------------------------------------------
+    
+        rows_inserted = save_inventory_snapshot(
+            connection=connection,
+            inventory_df=final_df,
+            run_id=run_id,
+            logger=logger
+        )
 
-    final_df = pd.concat(
-        inventory_frames,
-        ignore_index=True
-    )
+        # -------------------------------------------------
+        # Export CSV
+        # -------------------------------------------------
 
-# -------------------------------------------------
-# Synchronize Master Tables
-# -------------------------------------------------
+        export_inventory(final_df)
 
-    sync_categories(
-        connection=connection,
-        inventory_df=final_df
-    )
+        # -------------------------------------------------
+        # Complete Inventory Run
+        # -------------------------------------------------
 
-    logger.info("Categories Synced")
+        duration = complete_inventory_run(
+            connection=connection,
+            run_id=run_id,
+            start_time=start_time,
+            stores_processed=stores_processed,
+            stores_failed=stores_failed,
+            products_processed=len(final_df),
+            rows_inserted=rows_inserted,
+            logger=logger
+        )
 
-    sync_sub_categories(
-        connection=connection,
-        inventory_df=final_df
-    )
+        connection.commit()
 
-    logger.info("Sub Categories Synced")
 
-    sync_brands(
-        connection=connection,
-        inventory_df=final_df
-    )
+        # -------------------------------------------------
+        # Summary
+        # -------------------------------------------------
 
-    logger.info("Brands Synced")
+        logger.info("=" * 60)
+        logger.info("Inventory Refresh Completed Successfully")
+        logger.info("=" * 60)
 
-    sync_products(
-        connection=connection,
-        inventory_df=final_df
-    )
+        logger.info(f"Run ID            : {run_id}")
+        logger.info(f"Stores Processed  : {stores_processed}")
+        logger.info(f"Stores Failed     : {stores_failed}")
+        logger.info(f"Rows Inserted     : {rows_inserted:,}")
+        logger.info(f"Duration          : {duration} sec")
 
-    logger.info("Products Synced")
+    except Exception as e:
 
-    # -------------------------------------------------
-    # Store Inventory Snapshot
-    # -------------------------------------------------
+        logger.exception("Inventory ETL Failed")
 
-    rows_inserted = bulk_insert_inventory(
-        connection=connection,
-        inventory_df=final_df,
-        run_id=run_id
-    )
+        if connection is not None:
 
-    logger.info(
-    f"Inventory Snapshot Inserted ({rows_inserted:,} rows)"
-    )
+            connection.rollback()
 
-    # -------------------------------------------------
-    # Export CSV
-    # -------------------------------------------------
+            logger.info("Database Transaction Rolled Back")
 
-    export_inventory(final_df)
+            if run_id is not None:
 
-    # -------------------------------------------------
-    # Complete Inventory Run
-    # -------------------------------------------------
+                fail_run(
+                    connection=connection,
+                    run_id=run_id
+                )
 
-    duration = round(
-        perf_counter() - start_time,
-        2
-    )
+                connection.commit()
 
-    complete_run(
-        connection=connection,
-        run_id=run_id,
-        stores_processed=stores_processed,
-        stores_failed=stores_failed,
-        products_processed=len(final_df),
-        rows_inserted=rows_inserted,
-        duration_seconds=duration
-    )
+                logger.info("Inventory Run Marked As FAILED")
+    finally:
 
-    connection.commit()
+        if connection is not None and connection.is_connected():
 
-    connection.close()
+            connection.close()
 
-    # -------------------------------------------------
-    # Summary
-    # -------------------------------------------------
-
-    logger.info("=" * 60)
-    logger.info("Inventory Refresh Completed Successfully")
-    logger.info("=" * 60)
-
-    logger.info(f"Run ID            : {run_id}")
-    logger.info(f"Stores Processed  : {stores_processed}")
-    logger.info(f"Stores Failed     : {stores_failed}")
-    logger.info(f"Rows Inserted     : {rows_inserted:,}")
-    logger.info(f"Duration          : {duration} sec")
+            logger.info("Database Connection Closed")
 
 
 if __name__ == "__main__":
