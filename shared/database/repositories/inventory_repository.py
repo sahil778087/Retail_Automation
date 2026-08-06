@@ -46,3 +46,15 @@ def bulk_insert_inventory(
     cursor.close()
 
     return inserted_rows
+
+
+
+
+
+
+
+
+
+
+
+

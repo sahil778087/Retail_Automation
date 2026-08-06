@@ -40,12 +40,15 @@ from shared.database.repositories.product_repository import (
     sync_products
 )
 
+from shared.logger import get_logger
+import traceback
 
 def main():
+    logger = get_logger()
 
-    print("=" * 60)
-    print("QUEUEBUSTER INVENTORY REFRESH")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("QUEUEBUSTER INVENTORY REFRESH")
+    logger.info("=" * 60)
 
     # -------------------------------------------------
     # Start Timer
@@ -65,7 +68,7 @@ def main():
 
     run_id = create_run(connection)
 
-    print(f"\nRun Started : {run_id}")
+    logger.info(f"Run Started : {run_id}")
 
     # -------------------------------------------------
     # Generate Partner Token
@@ -75,9 +78,9 @@ def main():
 
     token = auth["token"]
 
-    print("\n✓ Partner Token Generated")
-    print(f"Issued At : {auth['issued_at']}")
-    print(f"Expires   : {auth['expires']}")
+    logger.info("Partner Token Generated")
+    logger.info(f"Issued At : {auth['issued_at']}")
+    logger.info(f"Expires   : {auth['expires']}")
 
     # -------------------------------------------------
     # Load Stores
@@ -85,7 +88,7 @@ def main():
 
     stores = load_stores()
 
-    print(f"\n✓ Loaded {len(stores)} Stores")
+    logger.info(f"Loaded {len(stores)} Stores")
 
     # -------------------------------------------------
     # Sync Store Master
@@ -96,7 +99,7 @@ def main():
         stores_df=stores
     )
 
-    print(f"✓ Store Master Synced ({stores_synced} affected rows)")
+    logger.info(f"Store Master Synced ({stores_synced} affected rows)")
 
     inventory_frames = []
 
@@ -112,7 +115,7 @@ def main():
         store_id = int(store["store_id"])
         store_name = str(store["store_name"])
 
-        print(f"\nFetching : {store_name}")
+        logger.info(f"Fetching : {store_name}")
 
         try:
 
@@ -131,14 +134,15 @@ def main():
 
             stores_processed += 1
 
-            print(f"✓ Products : {len(df)}")
+            logger.info(f"Products Retrieved : {len(df)}")
 
         except Exception as e:
 
             stores_failed += 1
 
-            print(f"✗ Failed : {store_name}")
-            print(e)
+            logger.exception(
+                f"Failed processing store: {store_name}"
+            )
 
             continue
 
@@ -167,28 +171,28 @@ def main():
         inventory_df=final_df
     )
 
-    print("✓ Categories Synced")
+    logger.info("Categories Synced")
 
     sync_sub_categories(
         connection=connection,
         inventory_df=final_df
     )
 
-    print("✓ Sub Categories Synced")
+    logger.info("Sub Categories Synced")
 
     sync_brands(
         connection=connection,
         inventory_df=final_df
     )
 
-    print("✓ Brands Synced")
+    logger.info("Brands Synced")
 
     sync_products(
         connection=connection,
         inventory_df=final_df
     )
 
-    print("✓ Products Synced")
+    logger.info("Products Synced")
 
     # -------------------------------------------------
     # Store Inventory Snapshot
@@ -200,7 +204,9 @@ def main():
         run_id=run_id
     )
 
-    print(f"✓ Inventory Snapshot Inserted ({rows_inserted:,} rows)")
+    logger.info(
+    f"Inventory Snapshot Inserted ({rows_inserted:,} rows)"
+    )
 
     # -------------------------------------------------
     # Export CSV
@@ -235,15 +241,15 @@ def main():
     # Summary
     # -------------------------------------------------
 
-    print("\n" + "=" * 60)
-    print("Inventory Refresh Completed Successfully")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Inventory Refresh Completed Successfully")
+    logger.info("=" * 60)
 
-    print(f"Run ID            : {run_id}")
-    print(f"Stores Processed  : {stores_processed}")
-    print(f"Stores Failed     : {stores_failed}")
-    print(f"Rows Inserted     : {rows_inserted:,}")
-    print(f"Duration          : {duration} sec")
+    logger.info(f"Run ID            : {run_id}")
+    logger.info(f"Stores Processed  : {stores_processed}")
+    logger.info(f"Stores Failed     : {stores_failed}")
+    logger.info(f"Rows Inserted     : {rows_inserted:,}")
+    logger.info(f"Duration          : {duration} sec")
 
 
 if __name__ == "__main__":
