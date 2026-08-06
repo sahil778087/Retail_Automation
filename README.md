@@ -39,29 +39,40 @@ The project automates inventory collection from multiple retail stores, synchron
 ---
 
 ## Project Structure
-Retail_Automation
-│
+## Project Structure
+
+Retail_Automation/
 ├── Inventory_API/
-│ ├── qb_inventory_api.py
-│ ├── inventory_workflow.py
-│ └── run_inventory.py
-│
+│   ├── qb_inventory_api.py
+│   ├── inventory_workflow.py
+│   └── run_inventory.py
 ├── shared/
-│ ├── database/
-│ │ ├── connection.py
-│ │ └── repositories/
-│ ├── auth.py
-│ ├── exporter.py
-│ ├── inventory_parser.py
-│ ├── logger.py
-│ └── store_loader.py
-│
+│   ├── database/
+│   │   ├── connection.py
+│   │   ├── schema.sql
+│   │   ├── seed.py
+│   │   └── repositories/
+│   │       ├── alert_repository.py
+│   │       ├── brand_repository.py
+│   │       ├── category_repository.py
+│   │       ├── inventory_repository.py
+│   │       ├── product_repository.py
+│   │       ├── run_repository.py
+│   │       ├── store_repository.py
+│   │       └── sub_category_repository.py
+│   ├── utils/
+│   ├── api_client.py
+│   ├── auth.py
+│   ├── config.py
+│   ├── constants.py
+│   ├── exporter.py
+│   ├── inventory_parser.py
+│   ├── logger.py
+│   └── store_loader.py
 ├── logs/
 ├── output/
 ├── main.py
-└── requirements.txt
-
----
+└── requirements.txt 
 
 ## Current Workflow
 
