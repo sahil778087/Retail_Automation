@@ -1,159 +1,145 @@
 # Retail Automation
 
-## Overview
+An end-to-end retail inventory automation system built using Python, MySQL, and QueueBuster APIs.
 
-Retail Automation is a modular Python-based automation platform designed to integrate with the QueueBuster ERP system using REST APIs. The objective of the project is to automate data extraction, processing, and reporting for retail operations, replacing manual workflows with scheduled data pipelines.
-
-The extracted data is transformed into analytics-ready datasets that are directly consumed by Power BI dashboards for operational monitoring and decision-making.
-
----
-
-## Current Module
-
-### Inventory API
-
-The Inventory module retrieves stock information for all configured stores using the QueueBuster Inventory API.
-
-Current workflow:
-
-1. Generate Partner Token
-2. Load configured store IDs
-3. Fetch inventory for each store
-4. Parse and flatten API responses
-5. Export a consolidated CSV dataset
-6. Refresh Power BI using the generated dataset
-
----
-
-## Project Structure
-
-```
-Retail_Automation/
-│
-├── Inventory_API/
-│   ├── config/
-│   ├── logs/
-│   ├── output/
-│   ├── qb_inventory_api.py
-│   └── run_inventory.py
-│
-├── shared/
-│   ├── api_client.py
-│   ├── auth.py
-│   ├── config.py
-│   ├── exporter.py
-│   ├── inventory_parser.py
-│   ├── logger.py
-│   └── store_loader.py
-│
-├── .env
-├── main.py
-├── requirements.txt
-└── README.md
-```
+The project automates inventory collection from multiple retail stores, synchronizes master data into a relational database, maintains historical inventory snapshots, exports Power BI-ready datasets, and provides a production-ready ETL workflow with logging and transaction management.
 
 ---
 
 ## Features
 
-- Automated QueueBuster Partner Token generation
-- Multi-store inventory extraction
-- JSON response parsing and flattening
-- CSV generation for Power BI
-- Modular project architecture
-- Environment variable configuration
-- Shared utility modules for reuse
-- Version controlled using Git
+- QueueBuster Inventory API integration
+- Multi-store inventory collection
+- Automatic synchronization of:
+  - Stores
+  - Categories
+  - Sub Categories
+  - Brands
+  - Products
+- Inventory snapshot history
+- Run tracking and ETL monitoring
+- MySQL-backed data warehouse
+- CSV export for Power BI
+- Structured logging
+- Transaction management with rollback support
+- Modular ETL workflow
+- Exception handling and failure recovery
 
 ---
 
-## Configuration
-
-Create the following file before running the project:
-
-```
-Inventory_API/config/stores.csv
-```
-
-You can use:
-
-```
-Inventory_API/config/stores_example.csv
-```
-
-as a template.
-
-## Technology Stack
+## Tech Stack
 
 - Python
-- Requests
 - Pandas
-- QueueBuster REST API
+- MySQL
+- QueueBuster REST APIs
 - Power BI
-- Git
+- Git & GitHub
 
 ---
 
-## Current Version
-
-**Version 1.0**
-
-Implemented features:
-
-- Partner authentication
-- Inventory API integration
-- Store-wise inventory extraction
-- Inventory data parser
-- CSV export pipeline
-- Power BI compatible output
+## Project Structure
+Retail_Automation
+│
+├── Inventory_API/
+│ ├── qb_inventory_api.py
+│ ├── inventory_workflow.py
+│ └── run_inventory.py
+│
+├── shared/
+│ ├── database/
+│ │ ├── connection.py
+│ │ └── repositories/
+│ ├── auth.py
+│ ├── exporter.py
+│ ├── inventory_parser.py
+│ ├── logger.py
+│ └── store_loader.py
+│
+├── logs/
+├── output/
+├── main.py
+└── requirements.txt
 
 ---
 
-## Planned Enhancements
+## Current Workflow
 
-### Version 2
+QueueBuster API
+│
+▼
+Partner Authentication
+│
+▼
+Fetch Inventory
+│
+▼
+Parse API Response
+│
+▼
+Synchronize Master Tables
+│
+▼
+Store Inventory Snapshot
+│
+▼
+Export CSV
+│
+▼
+Power BI
 
+
+---
+
+## Database Design
+
+Current database includes:
+
+- inventory_run
+- inventory_snapshot
+- store
+- category
+- sub_category
+- brand
+- product
+- inventory_status
+
+---
+
+## Reliability Features
+
+- Transaction-based ETL
+- Automatic rollback on failure
+- Run status tracking
 - Structured logging
-- Retry mechanism for failed API calls
-- Improved project architecture
-- Execution summary reports
-- Better exception handling
-
-### Future Modules
-
-- Sales API
-- Purchase API
-- Customer API
-- Product API
-- Automated Inventory Alerts
-- Power BI Dataset Refresh
-- Email Notifications
-- Inventory Forecasting
-- Demand Prediction
-- Automated Report Distribution
+- Exception handling
+- Modular workflow architecture
+- Master data synchronization
 
 ---
 
-## Project Status
+## Current Status
 
-### ✅ Version 1.0
-- QueueBuster Inventory API
-- CSV Export
-- Power BI Dashboard
+### Completed
 
-### ✅ Version 2.1
-- MySQL ETL Pipeline
+- Inventory ETL
 - Master Data Synchronization
 - Inventory Snapshot History
-- Inventory Run Tracking
-- Canonical Data Model
-
-### 🚧 Next (Version 2.2)
-- Structured Logging
+- Power BI Dataset Export
 - Transaction Management
+- Logging & Run Monitoring
+
+### Planned
+
 - Inventory Alert Engine
+- Sales ETL
+- Purchase ETL
 - Telegram Notifications
+- Automated Scheduling
+- Power BI Executive Dashboard
+
+---
 
 ## License
 
-This project is intended for educational and internal development purposes.
+MIT License
