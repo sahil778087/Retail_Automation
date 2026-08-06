@@ -1,7 +1,6 @@
 # Retail Automation
 
 An end-to-end retail inventory automation system built using Python, MySQL, and QueueBuster APIs.
-
 The project automates inventory collection from multiple retail stores, synchronizes master data into a relational database, maintains historical inventory snapshots, exports Power BI-ready datasets, and provides a production-ready ETL workflow with logging and transaction management.
 
 ---
@@ -39,8 +38,8 @@ The project automates inventory collection from multiple retail stores, synchron
 ---
 
 ## Project Structure
-## Project Structure
 
+```
 Retail_Automation/
 ├── Inventory_API/
 │   ├── qb_inventory_api.py
@@ -72,33 +71,37 @@ Retail_Automation/
 ├── logs/
 ├── output/
 ├── main.py
-└── requirements.txt 
+└── requirements.txt
+```
+
+---
 
 ## Current Workflow
 
+```
 QueueBuster API
-│
-▼
+      │
+      ▼
 Partner Authentication
-│
-▼
+      │
+      ▼
 Fetch Inventory
-│
-▼
+      │
+      ▼
 Parse API Response
-│
-▼
+      │
+      ▼
 Synchronize Master Tables
-│
-▼
+      │
+      ▼
 Store Inventory Snapshot
-│
-▼
+      │
+      ▼
 Export CSV
-│
-▼
+      │
+      ▼
 Power BI
-
+```
 
 ---
 
@@ -132,7 +135,6 @@ Current database includes:
 ## Current Status
 
 ### Completed
-
 - Inventory ETL
 - Master Data Synchronization
 - Inventory Snapshot History
@@ -141,7 +143,6 @@ Current database includes:
 - Logging & Run Monitoring
 
 ### Planned
-
 - Inventory Alert Engine
 - Sales ETL
 - Purchase ETL
