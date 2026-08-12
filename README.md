@@ -207,3 +207,121 @@ Synchronize MySQL
       ├── Brands
       └── Products
 ```
+## Inventory
+```text
+QueueBuster Inventory API
+          │
+          ▼
+    Fetch Inventory
+          │
+          ▼
+   Parse API Response
+          │
+          ▼
+ Synchronize Master Data
+          │
+          ▼
+ Store Inventory Snapshot
+          │
+          ▼
+    Track ETL Run
+          │
+          ▼
+      Export Data
+          │
+          ▼
+       Power BI
+```
+## Sales
+```text
+QueueBuster Sales API
+          │
+          ▼
+   Determine Checkpoint
+          │
+          ▼
+ Historical / Incremental
+     Sales Fetch
+          │
+          ▼
+    Parse Response
+          │
+          ▼
+   Store Transactions
+          │
+          ▼
+    Track ETL Run
+          │
+          ▼
+       MySQL
+          │
+          ▼
+       Power BI
+```
+---
+## Reliability
+
+The ETL workflows currently use:
+
+Database transactions
+Rollback on failure
+Structured logging
+ETL run tracking
+Incremental processing
+Checkpoint management
+Exception handling
+Repository-based database access
+Modular workflow separation
+
+The sales pipeline also includes separate testing around incremental processing, checkpoints, repositories, and workflow execution.
+---
+## Current Status
+### In Place
+- QueueBuster API integration
+- Master data synchronization
+- Multi-store inventory ETL
+- Inventory snapshot history
+- Inventory run tracking
+- MySQL database integration
+- Transaction management
+- Structured logging
+- Power BI dataset export
+- Sales API integration
+- Historical sales backfill
+- Incremental sales processing
+- Sales checkpoints
+- Sales repository layer
+- Sales workflow
+- Sales workflow tests
+
+---
+## Project Direction
+
+The project is being built incrementally, with each workflow separated into API integration, parsing, database, and workflow components.
+The immediate focus is moving from data collection and storage toward automated action, beginning with the Inventory Alert Engine.
+```text
+API
+ │
+ ▼
+ETL
+ │
+ ▼
+MySQL
+ │
+ ▼
+Inventory Data
+ │
+ ▼
+Alert Engine
+ │
+ ├── Low Stock
+ ├── Out of Stock
+ └── Other Rules
+ │
+ ▼
+Notifications / Reporting
+```
+---
+## License
+MIT License
+
