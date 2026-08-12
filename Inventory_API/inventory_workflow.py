@@ -5,22 +5,6 @@ This module contains the business workflow
 for the QueueBuster Inventory ETL.
 """
 
-from shared.database.repositories.category_repository import (
-    sync_categories
-)
-
-from shared.database.repositories.sub_category_repository import (
-    sync_sub_categories
-)
-
-from shared.database.repositories.brand_repository import (
-    sync_brands
-)
-
-from shared.database.repositories.product_repository import (
-    sync_products
-)
-
 import pandas as pd
 
 from shared.auth import get_partner_token
@@ -123,44 +107,6 @@ def fetch_inventory(logger):
         stores_processed,
         stores_failed
     )
-
-
-def sync_master_data(
-    connection,
-    inventory_df,
-    logger
-):
-    """
-    Synchronize all inventory master tables.
-    """
-
-    sync_categories(
-        connection=connection,
-        inventory_df=inventory_df
-    )
-
-    logger.info("Categories Synced")
-
-    sync_sub_categories(
-        connection=connection,
-        inventory_df=inventory_df
-    )
-
-    logger.info("Sub Categories Synced")
-
-    sync_brands(
-        connection=connection,
-        inventory_df=inventory_df
-    )
-
-    logger.info("Brands Synced")
-
-    sync_products(
-        connection=connection,
-        inventory_df=inventory_df
-    )
-
-    logger.info("Products Synced")
 
 
 def save_inventory_snapshot(

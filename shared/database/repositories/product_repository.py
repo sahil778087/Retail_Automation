@@ -1,4 +1,9 @@
-def sync_products(connection, inventory_df):
+import pandas as pd
+
+def sync_products(connection, product_df):
+
+    if product_df.empty:
+        return 0
 
     cursor = connection.cursor()
 
@@ -35,35 +40,23 @@ def sync_products(connection, inventory_df):
             updated_at = CURRENT_TIMESTAMP
     """
 
-    products = (
-        inventory_df[
-            [
-                "product_id",
-                "product_name",
-                "category_id",
-                "sub_category_id",
-                "brand_id",
-                "barcode",
-                "unit"
-            ]
-        ]
-        .drop_duplicates()
-        .sort_values("product_id")
-    )
-
     rows = [
         (
             int(row.product_id),
             str(row.product_name),
-            int(row.category_id),
-            int(row.sub_category_id),
-            int(row.brand_id),
+            int(row.category_id) if not pd.isna(row.category_id) else None,
+            int(row.sub_category_id) if not pd.isna(row.sub_category_id) else None,
+            int(row.brand_id) if not pd.isna(row.brand_id) else None,
             None if not row.barcode else str(row.barcode),
             str(row.unit)
         )
-        for row in products.itertuples(index=False)
+        for row in product_df.itertuples(index=False)
     ]
 
     cursor.executemany(query, rows)
 
+    rows_affected = cursor.rowcount
+
     cursor.close()
+
+    return rows_affected

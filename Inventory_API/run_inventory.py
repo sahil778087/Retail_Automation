@@ -15,22 +15,16 @@ from shared.database.repositories.store_repository import (
     sync_stores
 )
 
-from shared.database.repositories.inventory_repository import (
-    bulk_insert_inventory
-)
-
 from Inventory_API.qb_inventory_api import fetch_store_inventory
 
 from Inventory_API.inventory_workflow import (
     initialize_inventory_run,
     fetch_inventory,
-    sync_master_data,
     save_inventory_snapshot,
     complete_inventory_run
 )
 
 from shared.logger import get_logger
-import traceback
 
 def main():
     logger = get_logger()
@@ -81,20 +75,11 @@ def main():
         logger.info(
             f"Store Master Synced ({stores_synced} affected rows)"
         )
-    # -------------------------------------------------
-    # Synchronize Master Tables
-    # -------------------------------------------------
-
-        sync_master_data(
-            connection=connection,
-            inventory_df=final_df,
-            logger=logger
-        )
 
         # -------------------------------------------------
         # Store Inventory Snapshot
         # -------------------------------------------------
-    
+
         rows_inserted = save_inventory_snapshot(
             connection=connection,
             inventory_df=final_df,

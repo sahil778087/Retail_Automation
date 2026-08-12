@@ -1,4 +1,7 @@
-def sync_brands(connection, inventory_df):
+def sync_brands(connection, brand_df):
+
+    if brand_df.empty:
+        return 0
 
     cursor = connection.cursor()
 
@@ -6,10 +9,12 @@ def sync_brands(connection, inventory_df):
         INSERT INTO brand
         (
             brand_id,
-            brand_name
+            brand_name,
+            is_active
         )
         VALUES
         (
+            %s,
             %s,
             %s
         )
@@ -17,28 +22,23 @@ def sync_brands(connection, inventory_df):
         ON DUPLICATE KEY UPDATE
 
             brand_name = VALUES(brand_name),
+            is_active = VALUES(is_active),
             updated_at = CURRENT_TIMESTAMP
     """
-
-    brands = (
-        inventory_df[
-            [
-                "brand_id",
-                "brand_name"
-            ]
-        ]
-        .drop_duplicates()
-        .sort_values("brand_id")
-    )
 
     rows = [
         (
             int(row.brand_id),
-            str(row.brand_name)
+            str(row.brand_name),
+            int(row.is_active)
         )
-        for row in brands.itertuples(index=False)
+        for row in brand_df.itertuples(index=False)
     ]
 
     cursor.executemany(query, rows)
 
+    rows_affected = cursor.rowcount
+
     cursor.close()
+
+    return rows_affected

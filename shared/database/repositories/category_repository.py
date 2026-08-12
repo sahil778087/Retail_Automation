@@ -1,4 +1,7 @@
-def sync_categories(connection, inventory_df):
+def sync_categories(connection, category_df):
+
+    if category_df.empty:
+        return 0
 
     cursor = connection.cursor()
 
@@ -6,10 +9,12 @@ def sync_categories(connection, inventory_df):
         INSERT INTO category
         (
             category_id,
-            category_name
+            category_name,
+            is_active
         )
         VALUES
         (
+            %s,
             %s,
             %s
         )
@@ -17,28 +22,23 @@ def sync_categories(connection, inventory_df):
         ON DUPLICATE KEY UPDATE
 
             category_name = VALUES(category_name),
+            is_active = VALUES(is_active),
             updated_at = CURRENT_TIMESTAMP
     """
-
-    categories = (
-        inventory_df[
-            [
-                "category_id",
-                "category_name"
-            ]
-        ]
-        .drop_duplicates()
-        .sort_values("category_id")
-    )
 
     rows = [
         (
             int(row.category_id),
-            str(row.category_name)
+            str(row.category_name),
+            int(row.is_active)
         )
-        for row in categories.itertuples(index=False)
+        for row in category_df.itertuples(index=False)
     ]
 
     cursor.executemany(query, rows)
 
+    rows_affected = cursor.rowcount
+
     cursor.close()
+
+    return rows_affected

@@ -1,4 +1,7 @@
-def sync_sub_categories(connection, inventory_df):
+def sync_sub_categories(connection, sub_categories_df):
+
+    if sub_categories_df.empty:
+        return 0
 
     cursor = connection.cursor()
 
@@ -23,27 +26,19 @@ def sync_sub_categories(connection, inventory_df):
             updated_at = CURRENT_TIMESTAMP
     """
 
-    sub_categories = (
-        inventory_df[
-            [
-                "sub_category_id",
-                "sub_category_name",
-                "category_id"
-            ]
-        ]
-        .drop_duplicates()
-        .sort_values("sub_category_id")
-    )
-
     rows = [
         (
             int(row.sub_category_id),
             str(row.sub_category_name),
             int(row.category_id)
         )
-        for row in sub_categories.itertuples(index=False)
+        for row in sub_categories_df.itertuples(index=False)
     ]
 
     cursor.executemany(query, rows)
 
+    rows_affected = cursor.rowcount
+
     cursor.close()
+
+    return rows_affected
