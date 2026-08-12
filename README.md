@@ -77,7 +77,7 @@ The project includes tests for:
 ---
 
 ## Project Structure
-
+```text
 Retail_Automation/
 │
 ├── Inventory_API/
