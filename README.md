@@ -186,3 +186,24 @@ The project is organized around three main ETL workflows:
 
 ## ETL Flow
 Master Data
+```text
+QueueBuster API
+      │
+      ▼
+Authentication
+      │
+      ▼
+Fetch Master Data
+      │
+      ▼
+Parse API Response
+      │
+      ▼
+Synchronize MySQL
+      │
+      ├── Stores
+      ├── Categories
+      ├── Sub Categories
+      ├── Brands
+      └── Products
+```
