@@ -77,7 +77,7 @@ The project includes tests for:
 ---
 
 ## Project Structure
-```text
+
 Retail_Automation/
 │
 ├── Inventory_API/
@@ -153,7 +153,7 @@ Retail_Automation/
 ├── main.py
 ├── README.md
 └── requirements.txt
-```text
+
 ## Current Architecture
 
 The project is organized around three main ETL workflows:
