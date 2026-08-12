@@ -153,7 +153,7 @@ Retail_Automation/
 ├── main.py
 ├── README.md
 └── requirements.txt
-
+```
 ## Current Architecture
 
 The project is organized around three main ETL workflows:
