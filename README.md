@@ -274,6 +274,7 @@ Repository-based database access
 Modular workflow separation
 
 The sales pipeline also includes separate testing around incremental processing, checkpoints, repositories, and workflow execution.
+
 ---
 ## Current Status
 ### In Place
