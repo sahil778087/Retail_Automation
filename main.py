@@ -8,50 +8,55 @@ from Sales_API.run_sales import main as run_sales
 
 def main():
 
-    # -------------------------------------------------
-    # Validate Sales Date
-    # -------------------------------------------------
-
     if len(sys.argv) != 2:
+
         raise ValueError(
-            "Usage: python main.py YYYY-MM-DD"
+            "Usage: python main.py "
+            "[inventory|sales|master]"
         )
 
-    sales_date = sys.argv[1]
+    process = sys.argv[1].lower()
 
-    try:
+    # -------------------------------------------------
+    # INVENTORY
+    # -------------------------------------------------
 
-        datetime.strptime(
-            sales_date,
+    if process == "inventory":
+
+        run_inventory()
+
+    # -------------------------------------------------
+    # SALES
+    # -------------------------------------------------
+
+    elif process == "sales":
+
+        sales_date = datetime.now().strftime(
             "%Y-%m-%d"
         )
 
-    except ValueError:
-
-        raise ValueError(
-            f"Invalid sales date: {sales_date}. "
-            "Expected format: YYYY-MM-DD"
+        run_sales(
+            sales_date=sales_date
         )
 
     # -------------------------------------------------
     # MASTER
     # -------------------------------------------------
 
-    run_master()
+    elif process == "master":
+
+        run_master()
 
     # -------------------------------------------------
-    # INVENTORY
+    # INVALID PROCESS
     # -------------------------------------------------
 
-    run_inventory()
+    else:
 
-    # -------------------------------------------------
-    # SALES
-    # -------------------------------------------------
-
-    run_sales(
-        sales_date=sales_date
-    )
+        raise ValueError(
+            f"Unknown process: {process}. "
+            "Use inventory, sales, or master."
+        )
 
 
 if __name__ == "__main__":
