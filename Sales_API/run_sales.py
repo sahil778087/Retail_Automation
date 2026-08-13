@@ -13,7 +13,7 @@ from shared.database.repositories.sales_repository import (
 )
 
 
-def main():
+def main(sales_date=None):
 
     logger = get_logger()
 
@@ -22,15 +22,19 @@ def main():
     connection = None
 
     # -------------------------------------------------
-    # Validate Command Line Argument
+    # Resolve Sales Date
     # -------------------------------------------------
 
-    if len(sys.argv) != 2:
-        raise ValueError(
-            "Usage: python -m Sales_API.run_sales YYYY-MM-DD"
-        )
+    if sales_date is None:
 
-    sales_date = sys.argv[1]
+        if len(sys.argv) != 2:
+            raise ValueError(
+                "Sales date is required. "
+                "Usage: python -m Sales_API.run_sales YYYY-MM-DD"
+            )
+
+        sales_date = sys.argv[1]
+
 
     # -------------------------------------------------
     # Validate Sales Date
@@ -76,6 +80,7 @@ def main():
 
         sales_df, checkpoint_updates = fetch_sales_for_date(
             sales_date=sales_date,
+            connection=connection,
             logger=logger
         )
 

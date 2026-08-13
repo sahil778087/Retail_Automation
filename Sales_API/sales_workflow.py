@@ -2,14 +2,13 @@ from shared.auth import get_partner_token
 from shared.store_loader import load_stores
 from shared.sales_parser import parse_sales
 
-from shared.database.connection import get_connection
-
 from shared.database.repositories.sales_repository import (
     get_sales_checkpoint,
     get_existing_product_ids
 )
 
 from Sales_API.qb_sales_api import fetch_sales
+from shared.master_sync import ensure_products_exist
 
 
 def get_order_serial(order_id: str) -> int:
@@ -121,6 +120,7 @@ def filter_new_orders(
 
 def fetch_sales_for_date(
     sales_date: str,
+    connection,
     logger
 ):
     """
@@ -129,142 +129,132 @@ def fetch_sales_for_date(
     """
 
     # -------------------------------------------------
-    # Open Database Connection
+    # Generate Partner Token
     # -------------------------------------------------
 
-    connection = get_connection()
+    auth = get_partner_token()
 
-    try:
+    token = auth["token"]
 
-        # -------------------------------------------------
-        # Generate Partner Token
-        # -------------------------------------------------
+    logger.info(
+        "Partner Token Generated"
+    )
 
-        auth = get_partner_token()
+    # -------------------------------------------------
+    # Load Stores
+    # -------------------------------------------------
 
-        token = auth["token"]
+    stores = load_stores()
 
-        logger.info(
-            "Partner Token Generated"
+    logger.info(
+        f"Loaded {len(stores)} Stores"
+    )
+
+    valid_store_ids = set(
+        stores["store_id"].astype(int)
+    )
+
+    # -------------------------------------------------
+    # Fetch Sales
+    # -------------------------------------------------
+
+    logger.info(
+        f"Fetching Sales : {sales_date}"
+    )
+
+    response = fetch_sales(
+        sales_date=sales_date,
+        token=token
+    )
+
+    orders = response.get(
+        "data",
+        []
+    )
+
+    logger.info(
+        f"Orders Retrieved : {len(orders):,}"
+    )
+
+    # -------------------------------------------------
+    # Filter Incremental Orders
+    # -------------------------------------------------
+
+    new_orders, checkpoint_updates = filter_new_orders(
+        orders=orders,
+        connection=connection,
+        sales_date=sales_date,
+        valid_store_ids=valid_store_ids
+    )
+
+    logger.info(
+        f"New Orders : {len(new_orders):,}"
+    )
+
+    # -------------------------------------------------
+    # Parse New Orders
+    # -------------------------------------------------
+
+    incremental_response = {
+        "status": True,
+        "data": new_orders
+    }
+
+    sales_df = parse_sales(
+        incremental_response
+    )
+
+    logger.info(
+        f"Sales Rows Retrieved : {len(sales_df):,}"
+    )
+
+    # -------------------------------------------------
+    # Recover Missing Product Master Data
+    # -------------------------------------------------
+
+    if not sales_df.empty:
+
+        product_ids = (
+            sales_df["product_id"]
+            .dropna()
+            .astype(int)
+            .unique()
+            .tolist()
         )
 
-        # -------------------------------------------------
-        # Load Stores
-        # -------------------------------------------------
+        # Negative QueueBuster beta product IDs
+        # are not legitimate master products.
+        valid_product_ids = [
+            product_id
+            for product_id in product_ids
+            if product_id > 0
+        ]
 
-        stores = load_stores()
-
-        logger.info(
-            f"Loaded {len(stores)} Stores"
-        )
-
-        valid_store_ids = set(
-            stores["store_id"].astype(int)
-        )
-
-        # -------------------------------------------------
-        # Fetch Sales
-        # -------------------------------------------------
-
-        logger.info(
-            f"Fetching Sales : {sales_date}"
-        )
-
-        response = fetch_sales(
-            sales_date=sales_date,
-            token=token
-        )
-
-        orders = response.get(
-            "data",
-            []
-        )
-
-        logger.info(
-            f"Orders Retrieved : {len(orders):,}"
-        )
-
-        # -------------------------------------------------
-        # Filter Incremental Orders
-        # -------------------------------------------------
-
-        new_orders, checkpoint_updates = filter_new_orders(
-            orders=orders,
-            connection=connection,
-            sales_date=sales_date,
-            valid_store_ids=valid_store_ids
-        )
-
-        logger.info(
-            f"New Orders : {len(new_orders):,}"
-        )
-
-        # -------------------------------------------------
-        # Parse New Orders
-        # -------------------------------------------------
-
-        incremental_response = {
-            "status": True,
-            "data": new_orders
-        }
-
-        sales_df = parse_sales(
-            incremental_response
-        )
-
-        logger.info(
-            f"Sales Rows Retrieved : {len(sales_df):,}"
-        )
-
-        # -------------------------------------------------
-        # Validate Product References
-        # -------------------------------------------------
-
-        if not sales_df.empty:
-
-            product_ids = (
-                sales_df["product_id"]
-                .dropna()
-                .astype(int)
-                .unique()
-                .tolist()
-            )
+        if valid_product_ids:
 
             existing_product_ids = get_existing_product_ids(
                 connection=connection,
-                product_ids=product_ids
+                product_ids=valid_product_ids
             )
 
-            invalid_mask = ~sales_df["product_id"].isin(
-                existing_product_ids
-            )
+            missing_product_ids = [
+                product_id
+                for product_id in valid_product_ids
+                if product_id not in existing_product_ids
+            ]
 
-            invalid_sales = sales_df[
-                invalid_mask
-            ].copy()
+            if missing_product_ids:
 
-            if not invalid_sales.empty:
-
-                logger.warning(
-                    f"Skipping {len(invalid_sales):,} sales rows "
-                    f"with unknown product IDs."
+                logger.info(
+                    f"Missing Sales Products : "
+                    f"{missing_product_ids}"
                 )
 
-                logger.warning(
-                    "Unknown Product IDs : "
-                    f"{sorted(invalid_sales['product_id'].unique().tolist())}"
+                ensure_products_exist(
+                    connection=connection,
+                    product_ids=missing_product_ids,
+                    token=token,
+                    logger=logger
                 )
 
-                sales_df = sales_df[
-                    ~invalid_mask
-                ].copy()
-
-        logger.info(
-            f"Valid Sales Rows : {len(sales_df):,}"
-        )
-
-        return sales_df, checkpoint_updates
-
-    finally:
-
-        connection.close()
+    return sales_df, checkpoint_updates

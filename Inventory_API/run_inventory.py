@@ -20,6 +20,7 @@ from Inventory_API.qb_inventory_api import fetch_store_inventory
 from Inventory_API.inventory_workflow import (
     initialize_inventory_run,
     fetch_inventory,
+    recover_inventory_products,
     save_inventory_snapshot,
     complete_inventory_run
 )
@@ -59,7 +60,7 @@ def main():
     # Fetch Inventory
     # -------------------------------------------------
 
-        stores, final_df, stores_processed, stores_failed = fetch_inventory(
+        stores, final_df, stores_processed, stores_failed, token = fetch_inventory(
             logger=logger
         )
 
@@ -74,6 +75,17 @@ def main():
 
         logger.info(
             f"Store Master Synced ({stores_synced} affected rows)"
+        )
+
+        # -------------------------------------------------
+        # Recover Missing Product Master Data
+        # -------------------------------------------------
+
+        recover_inventory_products(
+            connection=connection,
+            inventory_df=final_df,
+            token=token,
+            logger=logger
         )
 
         # -------------------------------------------------

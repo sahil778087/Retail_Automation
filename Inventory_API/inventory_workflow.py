@@ -30,6 +30,48 @@ from shared.database.connection import get_connection
 from shared.database.repositories.run_repository import (
     create_run
 )
+from shared.master_sync import ensure_products_exist
+
+def recover_inventory_products(
+    connection,
+    inventory_df,
+    token,
+    logger
+):
+    """
+    Ensure all legitimate inventory products exist
+    in the local product master.
+    """
+
+    product_ids = (
+        inventory_df["product_id"]
+        .dropna()
+        .astype(int)
+        .unique()
+        .tolist()
+    )
+
+    if not product_ids:
+        return []
+
+    logger.info(
+        f"Checking Inventory Product Master : "
+        f"{len(product_ids)} products"
+    )
+
+    recovered_products = ensure_products_exist(
+        connection=connection,
+        product_ids=product_ids,
+        token=token,
+        logger=logger
+    )
+
+    logger.info(
+        f"Inventory Product Master Check Completed : "
+        f"{len(recovered_products)} products"
+    )
+
+    return recovered_products
 
 def fetch_inventory(logger):
     """
@@ -105,7 +147,8 @@ def fetch_inventory(logger):
         stores,
         final_df,
         stores_processed,
-        stores_failed
+        stores_failed,
+        token
     )
 
 
