@@ -9,6 +9,8 @@ from Sales_API.sales_workflow import fetch_sales_for_date
 
 from shared.database.repositories.sales_repository import (
     bulk_insert_sales,
+    bulk_insert_sales_orders,
+    bulk_insert_sales_payments,
     update_sales_checkpoint
 )
 
@@ -82,8 +84,14 @@ def main():
 
         current_date = start
 
-        total_rows = 0
+        total_sales_rows = 0
+        total_order_rows = 0
+        total_payment_rows = 0
         total_days = 0
+
+        # =================================================
+        # PROCESS EACH DATE
+        # =================================================
 
         while current_date <= end:
 
@@ -100,33 +108,78 @@ def main():
             # Fetch & Prepare Sales
             # -------------------------------------------------
 
-            sales_df, checkpoint_updates = (
-                fetch_sales_for_date(
-                    sales_date=sales_date,
-                    logger=logger
-                )
+            (
+                sales_df,
+                order_df,
+                payment_df,
+                checkpoint_updates
+            ) = fetch_sales_for_date(
+                sales_date=sales_date,
+                connection=connection,
+                logger=logger
             )
 
             logger.info(
-                f"Rows Prepared : {len(sales_df):,}"
+                f"Sales Rows Prepared : "
+                f"{len(sales_df):,}"
+            )
+
+            logger.info(
+                f"Sales Orders Prepared : "
+                f"{len(order_df):,}"
+            )
+
+            logger.info(
+                f"Sales Payments Prepared : "
+                f"{len(payment_df):,}"
             )
 
             # -------------------------------------------------
-            # Insert Sales
+            # SALES FACT
             # -------------------------------------------------
 
-            rows_affected = bulk_insert_sales(
+            sales_rows_affected = bulk_insert_sales(
                 connection=connection,
                 sales_df=sales_df
             )
 
             logger.info(
-                f"Rows Inserted/Updated : "
-                f"{rows_affected:,}"
+                f"Sales Rows Inserted/Updated : "
+                f"{sales_rows_affected:,}"
             )
 
             # -------------------------------------------------
-            # Update Checkpoints
+            # SALES ORDER
+            # -------------------------------------------------
+
+            order_rows_affected = bulk_insert_sales_orders(
+                connection=connection,
+                order_df=order_df
+            )
+
+            logger.info(
+                f"Sales Orders Inserted/Updated : "
+                f"{order_rows_affected:,}"
+            )
+
+            # -------------------------------------------------
+            # SALES PAYMENT
+            # -------------------------------------------------
+
+            payment_rows_affected = (
+                bulk_insert_sales_payments(
+                    connection=connection,
+                    payment_df=payment_df
+                )
+            )
+
+            logger.info(
+                f"Sales Payments Inserted : "
+                f"{payment_rows_affected:,}"
+            )
+
+            # -------------------------------------------------
+            # UPDATE CHECKPOINTS
             # -------------------------------------------------
 
             for store_id, checkpoint in (
@@ -154,14 +207,21 @@ def main():
 
             connection.commit()
 
-            total_rows += rows_affected
+            # -------------------------------------------------
+            # Update Totals
+            # -------------------------------------------------
+
+            total_sales_rows += sales_rows_affected
+            total_order_rows += order_rows_affected
+            total_payment_rows += payment_rows_affected
+
             total_days += 1
 
             current_date += timedelta(days=1)
 
-        # -------------------------------------------------
-        # Summary
-        # -------------------------------------------------
+        # =================================================
+        # FINAL SUMMARY
+        # =================================================
 
         duration = round(
             perf_counter() - start_time,
@@ -179,7 +239,18 @@ def main():
         )
 
         logger.info(
-            f"Rows Inserted/Updated : {total_rows:,}"
+            f"Sales Rows Inserted/Updated : "
+            f"{total_sales_rows:,}"
+        )
+
+        logger.info(
+            f"Sales Orders Inserted/Updated : "
+            f"{total_order_rows:,}"
+        )
+
+        logger.info(
+            f"Sales Payments Inserted : "
+            f"{total_payment_rows:,}"
         )
 
         logger.info(

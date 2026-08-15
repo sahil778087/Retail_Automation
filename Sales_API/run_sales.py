@@ -9,6 +9,8 @@ from Sales_API.sales_workflow import fetch_sales_for_date
 
 from shared.database.repositories.sales_repository import (
     bulk_insert_sales,
+    bulk_insert_sales_orders,
+    bulk_insert_sales_payments,
     update_sales_checkpoint
 )
 
@@ -78,7 +80,12 @@ def main(sales_date=None):
         # Fetch & Parse Sales
         # -------------------------------------------------
 
-        sales_df, checkpoint_updates = fetch_sales_for_date(
+        (
+            sales_df,
+            order_df,
+            payment_df,
+            checkpoint_updates
+        ) = fetch_sales_for_date(
             sales_date=sales_date,
             connection=connection,
             logger=logger
@@ -89,7 +96,7 @@ def main(sales_date=None):
         )
 
         # -------------------------------------------------
-        # Insert Sales
+        # SALES FACT
         # -------------------------------------------------
 
         rows_affected = bulk_insert_sales(
@@ -99,6 +106,34 @@ def main(sales_date=None):
 
         logger.info(
             f"Sales Rows Inserted/Updated : {rows_affected:,}"
+        )
+
+        # -------------------------------------------------
+        # SALES ORDER
+        # -------------------------------------------------
+
+        order_rows_affected = bulk_insert_sales_orders(
+            connection=connection,
+            order_df=order_df
+        )
+
+        logger.info(
+            f"Sales Orders Inserted/Updated : "
+            f"{order_rows_affected}"
+        )
+
+        # -------------------------------------------------
+        # SALES PAYMENT
+        # -------------------------------------------------
+
+        payment_rows_affected = bulk_insert_sales_payments(
+            connection=connection,
+            payment_df=payment_df
+        )
+
+        logger.info(
+            f"Sales Payments Inserted : "
+            f"{payment_rows_affected}"
         )
 
         # -------------------------------------------------

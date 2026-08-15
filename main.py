@@ -8,11 +8,16 @@ from Sales_API.run_sales import main as run_sales
 
 def main():
 
-    if len(sys.argv) != 2:
+    # -------------------------------------------------
+    # ARGUMENT VALIDATION
+    # -------------------------------------------------
+
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
 
         raise ValueError(
             "Usage: python main.py "
-            "[inventory|sales|master]"
+            "[inventory|sales|master] "
+            "[YYYY-MM-DD]"
         )
 
     process = sys.argv[1].lower()
@@ -31,9 +36,31 @@ def main():
 
     elif process == "sales":
 
-        sales_date = datetime.now().strftime(
-            "%Y-%m-%d"
-        )
+        # If date is provided → use it
+        if len(sys.argv) == 3:
+
+            sales_date = sys.argv[2]
+
+            # Validate date format
+            try:
+                datetime.strptime(
+                    sales_date,
+                    "%Y-%m-%d"
+                )
+
+            except ValueError:
+
+                raise ValueError(
+                    "Invalid date format. "
+                    "Use YYYY-MM-DD."
+                )
+
+        # Otherwise → today's date
+        else:
+
+            sales_date = datetime.now().strftime(
+                "%Y-%m-%d"
+            )
 
         run_sales(
             sales_date=sales_date

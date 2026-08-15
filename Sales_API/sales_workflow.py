@@ -200,7 +200,7 @@ def fetch_sales_for_date(
         "data": new_orders
     }
 
-    sales_df = parse_sales(
+    sales_df, order_df, payment_df = parse_sales(
         incremental_response
     )
 
@@ -208,11 +208,20 @@ def fetch_sales_for_date(
         f"Sales Rows Retrieved : {len(sales_df):,}"
     )
 
+    logger.info(
+        "Sales Product IDs : "
+        f"{sales_df['product_id'].dropna().astype(int).unique().tolist()}"
+    )
+
     # -------------------------------------------------
     # Recover Missing Product Master Data
     # -------------------------------------------------
 
     if not sales_df.empty:
+
+        # ---------------------------------------------
+        # Identify product IDs present in sales
+        # ---------------------------------------------
 
         product_ids = (
             sales_df["product_id"]
@@ -222,15 +231,60 @@ def fetch_sales_for_date(
             .tolist()
         )
 
-        # Negative QueueBuster beta product IDs
-        # are not legitimate master products.
-        valid_product_ids = [
-            product_id
-            for product_id in product_ids
-            if product_id > 0
+        logger.info(
+            f"Sales Product IDs : {product_ids}"
+        )
+
+        # ---------------------------------------------
+        # Handle invalid QueueBuster beta product IDs
+        #
+        # Negative product IDs cannot exist in our
+        # product master because sales_fact has a
+        # foreign key to product.product_id.
+        # ---------------------------------------------
+
+        invalid_rows = sales_df[
+            sales_df["product_id"] <= 0
         ]
 
-        if valid_product_ids:
+        invalid_product_ids = (
+            invalid_rows["product_id"]
+            .dropna()
+            .astype(int)
+            .unique()
+            .tolist()
+        )
+
+        if invalid_product_ids:
+
+            logger.warning(
+                f"Invalid Sales Product IDs "
+                f"from QueueBuster : "
+                f"{invalid_product_ids}"
+            )
+
+            logger.warning(
+                f"Removing {len(invalid_rows):,} "
+                f"sales rows with invalid Product IDs"
+            )
+
+            sales_df = sales_df[
+                sales_df["product_id"] > 0
+            ].copy()
+
+        # ---------------------------------------------
+        # Recover legitimate missing products
+        # ---------------------------------------------
+
+        if not sales_df.empty:
+
+            valid_product_ids = (
+                sales_df["product_id"]
+                .dropna()
+                .astype(int)
+                .unique()
+                .tolist()
+            )
 
             existing_product_ids = get_existing_product_ids(
                 connection=connection,
@@ -257,4 +311,190 @@ def fetch_sales_for_date(
                     logger=logger
                 )
 
-    return sales_df, checkpoint_updates
+    return (
+        sales_df,
+        order_df,
+        payment_df,
+        checkpoint_updates
+    )
+
+
+
+def fetch_sales_for_backfill_date(
+    sales_date: str,
+    connection,
+    logger
+):
+    """
+    Fetch ALL sales for a specific date for historical backfill.
+
+    Unlike the normal incremental sales workflow:
+    - Does NOT use sales checkpoints.
+    - Does NOT filter previously processed orders.
+    - Returns item-level, order-level and payment-level data.
+    """
+
+    # -------------------------------------------------
+    # Generate Partner Token
+    # -------------------------------------------------
+
+    auth = get_partner_token()
+
+    token = auth["token"]
+
+    logger.info(
+        "Partner Token Generated"
+    )
+
+    # -------------------------------------------------
+    # Load Stores
+    # -------------------------------------------------
+
+    stores = load_stores()
+
+    logger.info(
+        f"Loaded {len(stores)} Stores"
+    )
+
+    valid_store_ids = set(
+        stores["store_id"].astype(int)
+    )
+
+    # -------------------------------------------------
+    # Fetch ALL Sales For Date
+    # -------------------------------------------------
+
+    logger.info(
+        f"Backfill Fetching Sales : {sales_date}"
+    )
+
+    response = fetch_sales(
+        sales_date=sales_date,
+        token=token
+    )
+
+    orders = response.get(
+        "data",
+        []
+    )
+
+    logger.info(
+        f"Backfill Orders Retrieved : "
+        f"{len(orders):,}"
+    )
+
+    # -------------------------------------------------
+    # Filter Valid Stores
+    # -------------------------------------------------
+
+    valid_orders = []
+
+    for order in orders:
+
+        store_id = order.get("storeID")
+
+        if store_id is None:
+            continue
+
+        if int(store_id) not in valid_store_ids:
+            continue
+
+        valid_orders.append(order)
+
+    logger.info(
+        f"Backfill Valid Orders : "
+        f"{len(valid_orders):,}"
+    )
+
+    # -------------------------------------------------
+    # Parse ALL Orders
+    # -------------------------------------------------
+
+    backfill_response = {
+        "status": True,
+        "data": valid_orders
+    }
+
+    (
+        sales_df,
+        order_df,
+        payment_df
+    ) = parse_sales(
+        backfill_response
+    )
+
+    logger.info(
+        f"Backfill Sales Rows : "
+        f"{len(sales_df):,}"
+    )
+
+    logger.info(
+        f"Backfill Order Rows : "
+        f"{len(order_df):,}"
+    )
+
+    logger.info(
+        f"Backfill Payment Rows : "
+        f"{len(payment_df):,}"
+    )
+
+    # -------------------------------------------------
+    # Recover Missing Product Master Data
+    # -------------------------------------------------
+
+    if not sales_df.empty:
+
+        product_ids = (
+            sales_df["product_id"]
+            .dropna()
+            .astype(int)
+            .unique()
+            .tolist()
+        )
+
+        valid_product_ids = [
+            product_id
+            for product_id in product_ids
+            if product_id > 0
+        ]
+
+        if valid_product_ids:
+
+            existing_product_ids = (
+                get_existing_product_ids(
+                    connection=connection,
+                    product_ids=valid_product_ids
+                )
+            )
+
+            missing_product_ids = [
+                product_id
+                for product_id in valid_product_ids
+                if product_id not in existing_product_ids
+            ]
+
+            if missing_product_ids:
+
+                logger.info(
+                    f"Backfill Missing Sales Products : "
+                    f"{missing_product_ids}"
+                )
+
+                ensure_products_exist(
+                    connection=connection,
+                    product_ids=missing_product_ids,
+                    token=token,
+                    logger=logger
+                )
+
+    # -------------------------------------------------
+    # Return
+    # -------------------------------------------------
+
+    return (
+        sales_df,
+        order_df,
+        payment_df
+    )
+
+

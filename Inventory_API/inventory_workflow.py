@@ -214,16 +214,22 @@ def initialize_inventory_run(logger):
     """
     Initialize the inventory ETL run.
 
-    Returns
-    -------
-    tuple
-        (connection, run_id)
+    The run record is committed immediately so that
+    a later ETL failure can safely mark this run as FAILED.
     """
 
     connection = get_connection()
 
     run_id = create_run(connection)
 
-    logger.info(f"Run Started : {run_id}")
+    # -------------------------------------------------
+    # Commit RUNNING status
+    # -------------------------------------------------
+
+    connection.commit()
+
+    logger.info(
+        f"Run Started : {run_id}"
+    )
 
     return connection, run_id
