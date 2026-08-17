@@ -35,3 +35,7 @@ Inventory_API/archive/
 # Private inventory configuration
 
 Inventory_API/config/stores.csv
+
+# Logs
+
+logs/*.log

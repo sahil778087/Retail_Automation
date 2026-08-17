@@ -32,6 +32,16 @@ from shared.database.repositories.run_repository import (
 )
 from shared.master_sync import ensure_products_exist
 
+from shared.alert_service import process_inventory_alert
+
+from shared.database.repositories.demand_repository import (
+    save_7_day_thresholds
+)
+
+from shared.database.repositories.alert_repository import (
+    get_alert_thresholds
+)
+
 def recover_inventory_products(
     connection,
     inventory_df,
@@ -174,7 +184,165 @@ def save_inventory_snapshot(
 
     return rows_inserted
 
+def update_inventory_alert_thresholds(
+    connection,
+    logger
+):
+    """
+    Calculate and save 7-day demand thresholds
+    before inventory alert evaluation.
+    """
 
+    from datetime import date
+
+    result = save_7_day_thresholds(
+        connection=connection,
+        reference_date=date.today()
+    )
+
+    thresholds_count = len(
+        result["thresholds"]
+    )
+
+    rows_affected = result["updated_rows"]
+
+    logger.info(
+        f"Inventory Alert Thresholds Updated : "
+        f"{thresholds_count}"
+    )
+
+    logger.info(
+        f"Threshold Rows Affected : "
+        f"{rows_affected}"
+    )
+
+    return result
+
+
+def evaluate_inventory_alerts(
+    connection,
+    run_id,
+    inventory_df,
+    logger
+):
+    """
+    Evaluate inventory alerts for the current
+    inventory snapshot.
+    """
+
+    # -------------------------------------------------
+    # Load Active Thresholds
+    # -------------------------------------------------
+
+    threshold_rows = get_alert_thresholds(
+        connection=connection
+    )
+
+    # -------------------------------------------------
+    # Convert Thresholds Into Lookup Dictionary
+    # -------------------------------------------------
+
+    threshold_map = {
+        (
+            int(row["store_id"]),
+            int(row["product_id"])
+        ): row["threshold_quantity"]
+        for row in threshold_rows
+    }
+
+    logger.info(
+        f"Active Alert Thresholds Loaded : "
+        f"{len(threshold_map):,}"
+    )
+
+    # -------------------------------------------------
+    # Alert Counters
+    # -------------------------------------------------
+
+    alerts_created = 0
+    alerts_resolved = 0
+    alerts_kept_open = 0
+    products_without_threshold = 0
+
+    # -------------------------------------------------
+    # Evaluate Inventory
+    # -------------------------------------------------
+
+    for row in inventory_df.itertuples(index=False):
+
+        store_id = int(row.store_id)
+        product_id = int(row.product_id)
+        stock_quantity = row.stock_quantity
+
+        threshold_quantity = threshold_map.get(
+            (store_id, product_id)
+        )
+
+        # -------------------------------------------------
+        # No Threshold
+        # -------------------------------------------------
+
+        if threshold_quantity is None:
+
+            products_without_threshold += 1
+
+            continue
+
+        # -------------------------------------------------
+        # Evaluate Alert
+        # -------------------------------------------------
+
+        result = process_inventory_alert(
+            connection=connection,
+            run_id=run_id,
+            store_id=store_id,
+            product_id=product_id,
+            stock_quantity=stock_quantity,
+            threshold_quantity=threshold_quantity,
+            logger=logger
+        )
+
+        action = result["action"]
+
+        if action == "CREATED":
+
+            alerts_created += 1
+
+        elif action == "RESOLVED":
+
+            alerts_resolved += 1
+
+        elif action == "KEEP_OPEN":
+
+            alerts_kept_open += 1
+
+    # -------------------------------------------------
+    # Summary
+    # -------------------------------------------------
+
+    logger.info(
+        f"Alerts Created : {alerts_created}"
+    )
+
+    logger.info(
+        f"Alerts Resolved : {alerts_resolved}"
+    )
+
+    logger.info(
+        f"Alerts Kept Open : {alerts_kept_open}"
+    )
+
+    logger.info(
+        f"Products Without Threshold : "
+        f"{products_without_threshold}"
+    )
+
+    return {
+        "created": alerts_created,
+        "resolved": alerts_resolved,
+        "kept_open": alerts_kept_open,
+        "without_threshold": products_without_threshold
+    }
 
 def complete_inventory_run(
     connection,

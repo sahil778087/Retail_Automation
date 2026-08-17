@@ -3,25 +3,50 @@ from pathlib import Path
 from datetime import datetime
 
 
-LOG_FOLDER = Path("Inventory_API/logs")
-LOG_FOLDER.mkdir(parents=True, exist_ok=True)
+# ==========================================
+# Root Log Directory
+# ==========================================
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+LOG_FOLDER = BASE_DIR / "logs"
+
+LOG_FOLDER.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+
+# ==========================================
+# Logger
+# ==========================================
 
 def get_logger():
 
-    logger = logging.getLogger("inventory_logger")
+    logger = logging.getLogger("retail_automation_logger")
 
     if logger.hasHandlers():
         return logger
 
     logger.setLevel(logging.INFO)
 
-    log_file = LOG_FOLDER / f"inventory_{datetime.now():%Y-%m-%d}.log"
+    # ------------------------------------------
+    # Daily Log File
+    # ------------------------------------------
+
+    log_file = (
+        LOG_FOLDER
+        / f"retail_{datetime.now():%Y-%m-%d}.log"
+    )
 
     formatter = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s",
         "%Y-%m-%d %H:%M:%S"
     )
+
+    # ------------------------------------------
+    # File Handler
+    # ------------------------------------------
 
     file_handler = logging.FileHandler(
         log_file,
@@ -30,9 +55,17 @@ def get_logger():
 
     file_handler.setFormatter(formatter)
 
+    # ------------------------------------------
+    # Console Handler
+    # ------------------------------------------
+
     console_handler = logging.StreamHandler()
 
     console_handler.setFormatter(formatter)
+
+    # ------------------------------------------
+    # Register Handlers
+    # ------------------------------------------
 
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)

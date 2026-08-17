@@ -22,10 +22,15 @@ from Inventory_API.inventory_workflow import (
     fetch_inventory,
     recover_inventory_products,
     save_inventory_snapshot,
+    update_inventory_alert_thresholds,
+    evaluate_inventory_alerts,
     complete_inventory_run
 )
 
+
+
 from shared.logger import get_logger
+
 
 def main():
     logger = get_logger()
@@ -100,6 +105,26 @@ def main():
         )
 
         # -------------------------------------------------
+        # Update Inventory Alert Thresholds
+        # -------------------------------------------------
+
+        update_inventory_alert_thresholds(
+            connection=connection,
+            logger=logger
+        )
+
+        # -------------------------------------------------
+        # Evaluate Inventory Alerts
+        # -------------------------------------------------
+
+        alert_results = evaluate_inventory_alerts(
+            connection=connection,
+            run_id=run_id,
+            inventory_df=final_df,
+            logger=logger
+        )
+
+        # -------------------------------------------------
         # Export CSV
         # -------------------------------------------------
 
@@ -135,6 +160,27 @@ def main():
         logger.info(f"Stores Processed  : {stores_processed}")
         logger.info(f"Stores Failed     : {stores_failed}")
         logger.info(f"Rows Inserted     : {rows_inserted:,}")
+
+        logger.info(
+            f"Alerts Created    : "
+            f"{alert_results['created']}"
+        )
+
+        logger.info(
+            f"Alerts Resolved   : "
+            f"{alert_results['resolved']}"
+        )
+
+        logger.info(
+            f"Alerts Kept Open  : "
+            f"{alert_results['kept_open']}"
+        )
+
+        logger.info(
+            f"No Threshold     : "
+            f"{alert_results['without_threshold']}"
+        )
+
         logger.info(f"Duration          : {duration} sec")
 
     except Exception as e:
@@ -157,6 +203,10 @@ def main():
                 connection.commit()
 
                 logger.info("Inventory Run Marked As FAILED")
+
+        # Re-raise the original exception so the caller
+        # knows that the inventory ETL failed.
+        raise
     finally:
 
         if connection is not None and connection.is_connected():
